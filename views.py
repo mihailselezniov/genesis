@@ -105,4 +105,5 @@ def get_weather_cid():
 @app.route('/')
 def main():
     cities = request.cookies.get('cities')
-    return render_template("main.html", cities=cities.split("_"))
+    cities=cities.split("_") if cities else []
+    return render_template("main.html", cities=cities)
