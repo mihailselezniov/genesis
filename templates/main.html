@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="http://gen.tech/images/favicon.png">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Genesis</title>
+
+    <!-- Bootstrap -->
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+    
+    <style>
+      .form-weather {
+        margin: 20px 0;
+      }
+      button.btn-close {
+        padding-right: 5px;
+      }
+      .row-info {
+        margin-top: 0;
+      }
+      .btn-weather {
+        margin-left: 5px;
+      }
+    </style>
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <h1>Genesis</h1>
+      <div id="weatherapp"></div>
+    </div>
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/mithril/0.2.0/mithril.min.js"></script>
+    <script>
+        var weather = {};
+        
+        weather.City = function(data) {
+            this.city_name = m.prop(data.city_name);
+            this.temperature = m.prop(data.temperature);
+            this.day_type = m.prop(data.day_type);
+            this.dampness = m.prop(data.dampness);
+            this.pressure = m.prop(data.pressure);
+            this.wind_speed = m.prop(data.wind_speed);
+        };
+        
+        weather.CityList = Array;
+        
+        weather.vm = (function() {
+            var vm = {}
+            vm.init = function() {
+                vm.list = new weather.CityList();
+                vm.city_name = m.prop("");
+                vm.temperature = m.prop("");
+                vm.day_type = m.prop("");
+                vm.dampness = m.prop("");
+                vm.pressure = m.prop("");
+                vm.wind_speed = m.prop("");
+                vm.xhrConfig = function(xhr) {xhr.setRequestHeader("Content-Type", "application/json; charset=utf-8");}
+                vm.save = function(response) {
+                    console.log(response);
+                    vm.city_name(response['info']["weather"]["day"]['title'])
+                    var day_part = response['info']["weather"]["day"]["day_part"][0];
+                    vm.temperature(day_part["temperature"]["#text"]);
+                    vm.day_type(day_part["@type"]);
+                    vm.dampness(day_part["dampness"]);
+                    vm.pressure(day_part["pressure"]);
+                    vm.wind_speed(day_part["wind_speed"]);
+                    vm.list.push(new weather.City({
+                        city_name: vm.city_name(),
+                        temperature: vm.temperature(),
+                        day_type: vm.day_type(),
+                        dampness: vm.dampness(),
+                        pressure: vm.pressure(),
+                        wind_speed: vm.wind_speed()
+                    }));
+                    vm.city_name("");
+                };
+                vm.add = function() {
+                    if (vm.city_name()) {
+                        var data = {"city_name":vm.city_name()}
+                        m.request({
+                            method: "POST",
+                            url: "/weather",
+                            config: vm.xhrConfig,
+                            data: data
+                        }).then(function(response){
+                            vm.save(response);
+                        });
+                    }
+                };
+                vm.addById = function() {
+                    if (vm.city_name()) {
+                        var data = {"city_id":vm.city_name()}
+                        m.request({
+                            method: "POST",
+                            url: "/weather_cid",
+                            config: vm.xhrConfig,
+                            data: data
+                        }).then(function(response){
+                            vm.save(response);
+                        });
+                    }
+                };
+                vm.del = function() {
+                    weather.vm.list.splice(index, 1);
+                };
+                
+                {% for city in cities %}
+                    vm.city_name = m.prop("{{ city }}");
+                    vm.addById();
+                {% endfor %}
+            }
+            return vm
+        }())
+        
+        weather.controller = function() {
+            weather.vm.init()
+        }
+        
+        weather.view = function() {
+            return m("div", [
+              m("form.form-inline.form-weather", {onsubmit: function(event){event.preventDefault();}}, [
+                m("div.form-group", [
+                  m("input.form-control#exampleInputName2[type=text][placeholder=Город]", {onchange: m.withAttr("value", weather.vm.city_name), value: weather.vm.city_name()}),
+                ]),
+                m("div.btn.btn-default.btn-weather", {onclick: weather.vm.add}, "Погода"),
+              ]),
+                    m("div.row", [
+                        weather.vm.list.map(function(city, index) {
+                            return m("div.col-md-3.col-sm-4", [
+                              m("div.thumbnail", [
+                                m("button.close.btn-close[type=button][data-dismiss=alert][aria-label=Close]", {onclick: function(){
+                                    m.request({
+                                        method: "POST",
+                                        url: "/remove-city",
+                                        config: function(xhr) {xhr.setRequestHeader("Content-Type", "application/json; charset=utf-8");},
+                                        data: {"city_name":city.city_name()}
+                                        }).then(function(response){
+                                            console.log(response);
+                                            weather.vm.list.splice(index, 1);
+                                        });
+                                }}, [
+                                  m("span[aria-hidden=true]", m.trust("&times;")),
+                                ]),
+                                m("div.caption",[
+                                  m("h3.row-info", city.city_name()),
+                                  m("h2.row-info", city.temperature()+"°"),
+                                  m("p", city.day_type()),
+                                  m("p", "Влажность: "+city.dampness()+"%"),
+                                  m("p", "Давление: "+city.pressure()+" мм"),
+                                  m("p", "Скорость ветра: "+city.wind_speed()+" м/сек"),
+                                ]),
+                              ])
+                            ])
+                        })
+                    ])
+               
+            ]);
+        };
+        
+        //m.mount(document, {controller: weather.controller, view: weather.view});
+        m.module(document.getElementById('weatherapp'), {
+            controller: weather.controller, 
+            view: weather.view
+        });
+    </script>
+  </body>
+</html>
