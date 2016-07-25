@@ -1,14 +1,15 @@
 #!flask/bin/python
-import os, datetime, requests, time, xmltodict, json, redis
+import os, datetime, requests, time, xmltodict, json, redis, base64
 from flask import Flask, jsonify, abort, make_response, request, render_template
 from flask.ext.admin import Admin
 from flask.ext.admin.contrib.sqla import ModelView
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.script import Manager
 from flask.ext.migrate import Migrate, MigrateCommand
+from functools import wraps
 
 
-r_server = redis.Redis(host=os.getenv("IP", "0.0.0.0"), port=6379)
+redis_server = redis.Redis(host=os.getenv("IP", "0.0.0.0"), port=6379)
 app = Flask(__name__, static_folder='static', static_url_path='')
 app.config.from_object('config')
 app.secret_key = 'super secret key'
